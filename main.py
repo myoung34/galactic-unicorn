@@ -201,7 +201,7 @@ async def main(client):
     await client.connect()
 
     global _message
-    smiley = __import__("smiley")
+    smiley = __import__("test")
     _message = Image(smiley.get_image())
 
     gu.set_brightness(0.5)
