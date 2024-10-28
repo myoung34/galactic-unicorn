@@ -8,9 +8,9 @@ import asyncio
 import json
 
 # Local configuration
-config['ssid'] = secrets_config['ssid']
-config['wifi_pw'] = secrets_config['wifi_pw']
-config['server'] = secrets_config['server']
+config["ssid"] = secrets_config["ssid"]
+config["wifi_pw"] = secrets_config["wifi_pw"]
+config["server"] = secrets_config["server"]
 
 gu = GalacticUnicorn()
 graphics = PicoGraphics(DISPLAY)
@@ -25,9 +25,41 @@ BACKGROUND_COLOUR = (10, 0, 96)
 HOLD_TIME = 2.0
 STEP_TIME = 0.075
 
-class Message:
 
-    def __init__(self, message, font="Letters", font_color=(230, 210, 250), background_color=(20, 20, 120),max_width=0, max_height=0, pre_buffer=0, post_buffer=0, start_buffer=0, end_buffer=True, blinking=False, scrolling=False):
+class Image:
+    # message is a list of lists of RGB integers such as
+    # [
+    #   [0,0,255],[0,0,255],[0,0,255],
+    #   [0,0,255],[255,255,0],[0,0,255],
+    #   [0,0,255],[0,0,255],[0,0,255],
+    # ]
+    def __init__(
+        self,
+        message,
+        blinking=False,
+        scrolling=False,
+    ):
+        self.message = message
+        self.blinking = blinking
+        self.scrolling = scrolling
+
+
+class Message:
+    def __init__(
+        self,
+        message,
+        font="Letters",
+        font_color=(230, 210, 250),
+        background_color=(20, 20, 120),
+        max_width=0,
+        max_height=0,
+        pre_buffer=0,
+        post_buffer=0,
+        start_buffer=0,
+        end_buffer=True,
+        blinking=False,
+        scrolling=False,
+    ):
         self.message = message
         self.font = font
         self.font_color = font_color
@@ -47,7 +79,9 @@ class Message:
             self.ascii = self.get_ascii()
 
     def get_ascii(self):
-        response = urequests.get(f'https://asciified.thelicato.io/api/v2/ascii?text={self.message}&font={self.font}')
+        response = urequests.get(
+            f"https://asciified.thelicato.io/api/v2/ascii?text={self.message}&font={self.font}"
+        )
         self.max_width = 0
         self.max_height = height - self.pre_buffer - self.post_buffer
         lines = response.text.splitlines()
@@ -77,8 +111,9 @@ class Message:
 
         return [line for line in lines]
 
+
 @micropython.native  # noqa: F821
-def draw(image, sx, sy, fg, bg, time_ms,scrolling=False, blinking=False):
+def draw(image, sx, sy, fg, bg, time_ms, scrolling=False, blinking=False):
     fg_pen = graphics.create_pen(fg[0], fg[1], fg[2])
     bg_pen = graphics.create_pen(bg[0], bg[1], bg[2])
     for y in range(len(image)):
@@ -86,15 +121,15 @@ def draw(image, sx, sy, fg, bg, time_ms,scrolling=False, blinking=False):
         for x in range(len(row)):
             pixel = row[x]
             if blinking:
-                if not pixel.isspace() and pixel != 'X':
+                if not pixel.isspace() and pixel != "X":
                     graphics.set_pen(fg_pen)
                 # draw blinking
-                elif pixel == 'X' and (time_ms // 300) % 2:
+                elif pixel == "X" and (time_ms // 300) % 2:
                     graphics.set_pen(fg_pen)
                 else:
                     graphics.set_pen(bg_pen)
                 if scrolling:
-                    graphics.pixel(x+sx, y+sy)
+                    graphics.pixel(x + sx, y + sy)
                 else:
                     graphics.pixel(x, y)
             else:
@@ -103,40 +138,47 @@ def draw(image, sx, sy, fg, bg, time_ms,scrolling=False, blinking=False):
                 else:
                     graphics.set_pen(bg_pen)
                 if scrolling:
-                    graphics.pixel(x+sx, y+sy)
+                    graphics.pixel(x + sx, y + sy)
                 else:
                     graphics.pixel(x, y)
 
-
     gu.update(graphics)
+
 
 def callback(topic, msg, retained):
     message = {}
     global _message
     try:
-        message['data'] = json.loads(json.loads(msg)['data'])
+        message["data"] = json.loads(json.loads(msg)["data"])
     except Exception:
         message = json.loads(msg)
 
-    _message = Message(
-        message['data']['message'],
-        font=message['data'].get('font', "Letters"),
-        font_color=message['data'].get('font_color', (230, 210, 250)),
-        background_color=message['data'].get('background_color', (20, 20, 120)),
-        max_width=message['data'].get('max_width', 0),
-        max_height=message['data'].get('max_height', 0),
-        pre_buffer=message['data'].get('pre_buffer', 0),
-        post_buffer=message['data'].get('post_buffer', 0),
-        start_buffer=message['data'].get('start_buffer', 0),
-        end_buffer=message['data'].get('end_buffer', True),
-        scrolling=message['data'].get('scrolling', False),
-        blinking=message['data'].get('blinking', False),
-    )
+    if message.get("type", "") == "image":
+        _message = Image(message["data"]["message"])
+        print(_message.message[0])
+    else:
+        _message = Message(
+            message["data"]["message"],
+            font=message["data"].get("font", "Letters"),
+            font_color=message["data"].get("font_color", (230, 210, 250)),
+            background_color=message["data"].get("background_color", (20, 20, 120)),
+            max_width=message["data"].get("max_width", 0),
+            max_height=message["data"].get("max_height", 0),
+            pre_buffer=message["data"].get("pre_buffer", 0),
+            post_buffer=message["data"].get("post_buffer", 0),
+            start_buffer=message["data"].get("start_buffer", 0),
+            end_buffer=message["data"].get("end_buffer", True),
+            scrolling=message["data"].get("scrolling", False),
+            blinking=message["data"].get("blinking", False),
+        )
+
 
 async def conn_han(client):
-    await client.subscribe('foo', 1)
+    await client.subscribe("foo", 1)
+
 
 _message = Message("")
+
 
 async def main(client):
     await client.connect()
@@ -181,21 +223,49 @@ async def main(client):
             shift = 0
             last_time = time_ms
 
-        graphics.set_pen(graphics.create_pen(int(BACKGROUND_COLOUR[0]), int(BACKGROUND_COLOUR[1]), int(BACKGROUND_COLOUR[2])))
+        graphics.set_pen(
+            graphics.create_pen(
+                int(BACKGROUND_COLOUR[0]),
+                int(BACKGROUND_COLOUR[1]),
+                int(BACKGROUND_COLOUR[2]),
+            )
+        )
         graphics.clear()
-        if _message.scrolling:
-            draw(_message.ascii, sx=PADDING - shift, sy=2, fg=_message.font_color, bg=_message.background_color, time_ms=time_ms, scrolling=True, blinking=True)
+        if isinstance(_message, Image):
+            pass
         else:
-            draw(_message.ascii, sx=0, sy=2, fg=_message.font_color, bg=_message.background_color, time_ms=time_ms, scrolling=False, blinking=True)
+            if _message.scrolling:
+                draw(
+                    _message.ascii,
+                    sx=PADDING - shift,
+                    sy=2,
+                    fg=_message.font_color,
+                    bg=_message.background_color,
+                    time_ms=time_ms,
+                    scrolling=True,
+                    blinking=True,
+                )
+            else:
+                draw(
+                    _message.ascii,
+                    sx=0,
+                    sy=2,
+                    fg=_message.font_color,
+                    bg=_message.background_color,
+                    time_ms=time_ms,
+                    scrolling=False,
+                    blinking=True,
+                )
 
-        # update the display
+            # update the display
         gu.update(graphics)
 
         # pause for a moment (important or the USB serial device will fail)
         await asyncio.sleep(0.001)
 
-config['subs_cb'] = callback
-config['connect_coro'] = conn_han
+
+config["subs_cb"] = callback
+config["connect_coro"] = conn_han
 
 # Example call:
 # curl -XPOST https://... -d \
