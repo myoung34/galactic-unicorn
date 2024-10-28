@@ -42,6 +42,8 @@ class Image:
         self.message = message
         self.blinking = blinking
         self.scrolling = scrolling
+        self.max_width = 0
+        self.max_height = 0
 
 
 class Message:
@@ -110,6 +112,21 @@ class Message:
             # lines[-1:-1] = ["              "]
 
         return [line for line in lines]
+
+
+@micropython.native  # noqa: F821
+def draw_image(image, time_ms, scrolling=False, blinking=False):
+    # image is a list of lists of RGB integers such as
+    # [
+    #   [[0,0,255],[0,0,255],[0,0,255]],
+    #   [[0,0,255],[255,255,0],[0,0,255]],
+    #   [[0,0,255],[0,0,255],[0,0,255]],
+    # ]
+    for y, row in enumerate(image):
+        for x, (r, g, b) in enumerate(row):
+            graphics.set_pen(graphics.create_pen(r, g, b))
+            graphics.pixel(x, y)
+    gu.update(graphics)
 
 
 @micropython.native  # noqa: F821
@@ -184,7 +201,13 @@ async def main(client):
     await client.connect()
 
     global _message
-    _message = Message("This+is+a+test", blinking=True, scrolling=True)
+    _message = Image(
+        [
+            [[0, 0, 255], [0, 0, 255], [0, 0, 255]],
+            [[0, 0, 255], [255, 255, 0], [0, 0, 255]],
+            [[0, 0, 255], [0, 0, 255], [0, 0, 255]],
+        ]
+    )
 
     gu.set_brightness(0.5)
 
@@ -232,7 +255,10 @@ async def main(client):
         )
         graphics.clear()
         if isinstance(_message, Image):
-            pass
+            draw_image(
+                _message.message,
+                time_ms=time_ms,
+            )
         else:
             if _message.scrolling:
                 draw(
