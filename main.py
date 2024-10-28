@@ -171,8 +171,9 @@ def callback(topic, msg, retained):
         message = json.loads(msg)
 
     if message.get("type", "") == "image":
-        _message = Image(message["data"]["message"])
-        print(_message.message[0])
+        print(f'[DEBUG] Using the image {message["data"]["message"]}')
+        _image = __import__(message["data"]["message"])
+        _message = Image(_image.get_image())
     else:
         _message = Message(
             message["data"]["message"],
@@ -201,8 +202,8 @@ async def main(client):
     await client.connect()
 
     global _message
-    smiley = __import__("test")
-    _message = Image(smiley.get_image())
+    _image = __import__("middlefinger")
+    _message = Image(_image.get_image())
 
     gu.set_brightness(0.5)
 
