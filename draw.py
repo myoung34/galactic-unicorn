@@ -13,12 +13,25 @@ class RGBMatrixApp:
         # Initialize color matrix (black)
         self.color_matrix = [[[0, 0, 0] for _ in range(self.cols)] for _ in range(self.rows)]
 
+        # Current color for coloring
+        self.current_color = [255, 255, 255]  # Default to white
+
+        # Flag to track if dragging
+        self.dragging = False
+
         # Create canvas with specified width and height
         self.canvas = tk.Canvas(master, width=self.cols * col_width, height=self.rows * row_height)
         self.canvas.pack()
 
         # Draw the initial grid
         self.draw_grid()
+
+        # Bind events
+        self.canvas.bind("<Button-1>", self.start_click)  # Left click to set color (single click)
+        self.canvas.bind("<B1-Motion>", self.drag_color)  # Dragging with left button
+        self.canvas.bind("<ButtonRelease-1>", self.end_drag)  # Stop dragging
+        self.canvas.bind("<Button-3>", self.clear_block)  # Right click to clear block
+        self.canvas.bind("<Button-2>", self.print_matrix)  # Middle click to print matrix
 
     def draw_grid(self):
         """Draws the grid on the canvas."""
@@ -31,41 +44,46 @@ class RGBMatrixApp:
 
                 # Fill with the current RGB color
                 color = f'#{self.color_matrix[row][col][0]:02x}{self.color_matrix[row][col][1]:02x}{self.color_matrix[row][col][2]:02x}'
-                # Outline color set to white
                 self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='white', tags=f"{row}_{col}")
 
-        # Bind click events after drawing the grid
-        self.canvas.bind("<Button-1>", self.change_color)  # Left click to change color
-        self.canvas.bind("<Button-2>", self.print_matrix)    # Right click to print color
+    def start_click(self, event):
+        """Handles the start of a left click."""
+        self.dragging = False  # Reset dragging flag
 
-    def change_color(self, event):
-        """Changes the color of the clicked block."""
-        # Get the coordinates of the block
-        col = event.x // col_width
-        row = event.y // row_height
+    def drag_color(self, event):
+        """Colors blocks while dragging."""
+        self.dragging = True  # User is dragging
+        self.color_block(event, self.current_color)
 
-        # Ensure the click is within the grid limits
-        if 0 <= col < self.cols and 0 <= row < self.rows:
-            # Open color picker dialog
+    def end_drag(self, event):
+        """Handles the end of a left-click event (detect single click)."""
+        if not self.dragging:  # If the user didn’t drag, show the color picker
             color = colorchooser.askcolor(title="Choose a color")
-
             if color[0] is not None:
-                r, g, b = [int(c) for c in color[0]]
-                self.color_matrix[row][col] = [r, g, b]
-                self.draw_grid()  # Redraw the grid with new colors
+                self.current_color = [int(c) for c in color[0]]  # Update the current color
 
-    def print_color(self, event):
-        """Prints the RGB values of the clicked block."""
+    def clear_block(self, event):
+        """Clears the block (sets it to black) where the right click occurs."""
+        self.color_block(event, [0, 0, 0])
+
+    def color_block(self, event, color):
+        """Colors a single block based on the event coordinates."""
         # Get the coordinates of the block
         col = event.x // col_width
         row = event.y // row_height
 
-        # Ensure the click is within the grid limits
+        # Ensure the event is within the grid limits
         if 0 <= col < self.cols and 0 <= row < self.rows:
-            rgb_values = self.color_matrix[row][col]
-            print(f"Block ({row}, {col}) color: RGB {rgb_values}")
-        else:
-            print("Click was outside the matrix bounds.")
+            # Update the color matrix
+            self.color_matrix[row][col] = color
+
+            # Update the grid with the new color
+            x1 = col * col_width
+            y1 = row * row_height
+            x2 = x1 + col_width
+            y2 = y1 + row_height
+            hex_color = f'#{color[0]:02x}{color[1]:02x}{color[2]:02x}'
+            self.canvas.create_rectangle(x1, y1, x2, y2, fill=hex_color, outline='white', tags=f"{row}_{col}")
 
     def print_matrix(self, event):
         """Prints the entire RGB matrix in a list of lists format."""
